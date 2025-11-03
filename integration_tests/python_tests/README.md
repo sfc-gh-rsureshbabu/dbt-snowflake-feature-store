@@ -2,6 +2,16 @@
 
 Integration tests that validate dbt-created Feature Store objects work correctly with the Snowflake ML Python API.
 
+## 🎯 Why These Tests Are Critical
+
+These tests ensure **byte-for-byte metadata compatibility** between dbt-created objects and Python API-created objects. They have caught critical bugs:
+
+- **Bug Found:** Entities stored as objects `[{"name": "X", "joinKeys": [...]}]` instead of strings `["X"]`
+- **Impact:** Snowsight UI crashed with `TypeError: Cannot read properties of undefined (reading 'joinKeys')`
+- **How Caught:** `test_metadata_compatibility.py` compares metadata structure with Python API reference
+
+**Key Learning:** Testing that the Python API can "read" feature views is NOT enough. We must validate the **exact metadata structure** matches what the Python API generates.
+
 ## Setup
 
 1. **Install dependencies:**
