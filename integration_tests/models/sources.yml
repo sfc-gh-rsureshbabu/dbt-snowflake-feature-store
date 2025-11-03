@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: test_sources
+    database: "{{ target.database }}"
+    schema: FEATURE_STORE
+    tables:
+      - name: customer_base_table
+        description: "Base table for customer data used in feature views"
+

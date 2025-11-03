@@ -87,28 +87,60 @@ pytest test_feature_store_api.py::TestFeatureRetrieval -v
 pytest test_feature_store_api.py::TestDynamicTableBehavior -v
 ```
 
-## What These Tests Validate
+## Test Suites
 
-### Entity Tests
-- ✅ Entities created by dbt are discoverable via `feature_store.list_entities()`
-- ✅ Entities can be retrieved via `feature_store.get_entity()`
-- ✅ Entity metadata (join_keys, description) is correct
+### 1. `test_metadata_compatibility.py` ⭐ **Most Critical**
 
-### Feature View Tests
-- ✅ Feature views created by dbt are discoverable via `feature_store.list_feature_views()`
-- ✅ Static (VIEW) feature views can be retrieved and read
-- ✅ Managed (DYNAMIC TABLE) feature views can be retrieved and read
-- ✅ Feature view metadata (entities, timestamp_col) is correct
-- ✅ Dynamic Tables have correct refresh configuration
+**Metadata structure validation** - Ensures byte-for-byte compatibility with Python API.
 
-### Metadata Tests
-- ✅ TAG format is compatible with Python API
-- ✅ JSON structure matches expected schema
+Tests:
+- `test_metadata_structure_matches_python_api()` - Compares with Python API-created metadata
+- `test_entities_are_uppercase_strings()` - Validates entity format (strings, not objects)
+- `test_timestamp_col_format()` - Validates timestamp column metadata
+- `test_ui_can_parse_metadata()` - Simulates Snowsight UI parsing
 
-### Dynamic Table Tests
-- ✅ Dynamic Table was created (not a VIEW)
-- ✅ TARGET_LAG, WAREHOUSE, REFRESH_MODE are correct
-- ✅ Subsequent dbt runs don't recreate the table
+**Why Critical:** Caught the bug where entities were objects `[{name, joinKeys}]` instead of strings `["NAME"]`, which broke the UI.
+
+### 2. `test_feature_store_workflows.py` 🔄 **End-to-End**
+
+**Full API workflow validation** - Tests real-world Feature Store usage.
+
+**Dataset Generation:**
+- `test_generate_dataset_single_feature_view()` - Basic dataset creation from dbt FV
+- `test_point_in_time_correctness()` - Validates temporal joins work correctly
+- `test_generate_dataset_multiple_feature_views()` - Multi-FV joins
+
+**Training Datasets:**
+- `test_create_and_retrieve_dataset()` - Full lifecycle: create → save → retrieve → read
+- `test_dataset_metadata()` - Dataset metadata validation
+
+**Feature View Chaining:**
+- `test_feature_view_references_another_fv()` - Base FV → Derived FV pattern
+- `test_multi_hop_feature_view_chain()` - Multi-level chains (base → intermediate → final)
+
+**Dynamic Tables:**
+- `test_generate_dataset_from_dynamic_table_fv()` - Managed FV in datasets
+- `test_mix_static_and_managed_fvs()` - Mixed VIEW + Dynamic Table datasets
+
+### 3. `test_feature_store_api.py` 📋 **Basic Compatibility**
+
+**API discovery and retrieval** - Tests basic Feature Store operations.
+
+**Entity Tests:**
+- ✅ Entities discoverable via `list_entities()`
+- ✅ Entity retrieval via `get_entity()`
+- ✅ Entity metadata (join_keys, description) correct
+
+**Feature View Tests:**
+- ✅ Feature views discoverable via `list_feature_views()`
+- ✅ Static (VIEW) FVs can be retrieved and read
+- ✅ Managed (DYNAMIC TABLE) FVs can be retrieved and read
+- ✅ FV metadata (entities, timestamp_col) correct
+
+**Dynamic Table Tests:**
+- ✅ Dynamic Table created (not a VIEW)
+- ✅ TARGET_LAG, WAREHOUSE, REFRESH_MODE correct
+- ✅ Subsequent dbt runs don't recreate
 
 ## Test Output
 
