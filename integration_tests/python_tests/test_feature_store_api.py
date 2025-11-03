@@ -159,49 +159,84 @@ class TestFeatureRetrieval:
 
 
 class TestMetadataCompatibility:
-    """Test that metadata stored by dbt is compatible with Python API."""
+    """Test that metadata stored by dbt is compatible with Python API and UI."""
     
-    def test_entity_metadata_format(self, snowflake_session):
-        """Test that entity metadata tags are in correct format."""
-        # Query the entity tag directly
-        query = """
-        SELECT TAG_VALUE
-        FROM INFORMATION_SCHEMA.TAG_REFERENCES
-        WHERE TAG_NAME = 'SNOWML_FEATURE_STORE_ENTITY_TEST_CUSTOMER_ENTITY'
-          AND OBJECT_NAME = 'FEATURE_STORE'
+    def test_feature_view_metadata_structure_ui_compatibility(self, snowflake_session):
         """
+        Test that feature view metadata has the correct structure for UI compatibility.
         
-        result = snowflake_session.sql(query).collect()
-        assert len(result) > 0
-        
-        # Verify it's valid JSON with expected structure
-        import json
-        metadata = json.loads(result[0]['TAG_VALUE'])
-        
-        assert 'name' in metadata
-        assert 'join_keys' in metadata
-        assert isinstance(metadata['join_keys'], list)
-    
-    def test_feature_view_metadata_format(self, snowflake_session):
-        """Test that feature view metadata tags are in correct format."""
+        This test validates the fix for: "Cannot read properties of undefined (reading 'joinKeys')"
+        The UI expects entities to be objects with 'name' and 'joinKeys' properties.
+        """
         # Query the feature view metadata tag
         query = """
-        SELECT TAG_VALUE
+        SELECT 
+            OBJECT_NAME,
+            TAG_VALUE
         FROM INFORMATION_SCHEMA.TAG_REFERENCES
         WHERE TAG_NAME = 'SNOWML_FEATURE_VIEW_METADATA'
-          AND OBJECT_NAME = 'TEST_STATIC_CUSTOMER_FEATURES$1.0'
+          AND OBJECT_NAME IN ('TEST_STATIC_CUSTOMER_FEATURES$1_0', 'TEST_MANAGED_CUSTOMER_FEATURES$1_0')
         """
         
         result = snowflake_session.sql(query).collect()
-        assert len(result) > 0
+        assert len(result) >= 1, "No feature view metadata tags found"
         
-        # Verify it's valid JSON with expected structure
+        # Verify structure for each feature view
         import json
-        metadata = json.loads(result[0]['TAG_VALUE'])
+        for row in result:
+            object_name = row['OBJECT_NAME']
+            metadata = json.loads(row['TAG_VALUE'])
+            
+            # Metadata must have required fields
+            assert 'entities' in metadata, f"{object_name}: Missing 'entities' field"
+            assert 'timestamp_col' in metadata, f"{object_name}: Missing 'timestamp_col' field"
+            
+            # Entities must be a non-empty list
+            entities = metadata['entities']
+            assert isinstance(entities, list), f"{object_name}: 'entities' must be a list"
+            assert len(entities) > 0, f"{object_name}: 'entities' list is empty"
+            
+            # Each entity must be an object with 'name' and 'joinKeys'
+            for entity in entities:
+                assert isinstance(entity, dict), f"{object_name}: Entity must be an object, got {type(entity)}"
+                assert 'name' in entity, f"{object_name}: Entity missing 'name' field: {entity}"
+                assert 'joinKeys' in entity, f"{object_name}: Entity missing 'joinKeys' field: {entity}"
+                
+                # joinKeys must be a non-empty list
+                join_keys = entity['joinKeys']
+                assert isinstance(join_keys, list), f"{object_name}: 'joinKeys' must be a list"
+                assert len(join_keys) > 0, f"{object_name}: 'joinKeys' list is empty for entity {entity['name']}"
+                
+                # Entity name should be uppercase (Snowflake convention)
+                assert entity['name'] == entity['name'].upper(), \
+                    f"{object_name}: Entity name should be uppercase: {entity['name']}"
+    
+    def test_entity_tag_values(self, snowflake_session):
+        """Test that entity tag values are set correctly on feature views."""
+        # Query entity tags on feature views
+        query = """
+        SELECT 
+            OBJECT_NAME,
+            TAG_NAME,
+            TAG_VALUE
+        FROM INFORMATION_SCHEMA.TAG_REFERENCES
+        WHERE TAG_NAME LIKE 'SNOWML_FEATURE_STORE_ENTITY_%'
+          AND OBJECT_NAME IN ('TEST_STATIC_CUSTOMER_FEATURES$1_0', 'TEST_MANAGED_CUSTOMER_FEATURES$1_0')
+        ORDER BY OBJECT_NAME, TAG_NAME
+        """
         
-        assert 'entities' in metadata
-        assert 'timestamp_col' in metadata
-        assert isinstance(metadata['entities'], list)
+        result = snowflake_session.sql(query).collect()
+        assert len(result) >= 1, "No entity tags found on feature views"
+        
+        # Each feature view should have entity tags with comma-separated join keys
+        for row in result:
+            object_name = row['OBJECT_NAME']
+            tag_name = row['TAG_NAME']
+            tag_value = row['TAG_VALUE']
+            
+            # Tag value should be comma-separated join keys
+            assert tag_value, f"{object_name}: Empty tag value for {tag_name}"
+            assert len(tag_value) > 0, f"{object_name}: Tag value is empty for {tag_name}"
 
 
 class TestDynamicTableBehavior:

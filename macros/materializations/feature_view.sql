@@ -44,16 +44,6 @@
   
   {{ validate_entities_exist(entities) }}
   
-  {%- set fv_metadata = {
-    'entities': entities,
-    'timestamp_col': timestamp_col if timestamp_col else 'NULL'
-  } -%}
-  
-  {%- set fs_object_info = {
-    'type': 'MANAGED_FEATURE_VIEW' if is_dynamic_table else 'EXTERNAL_FEATURE_VIEW',
-    'pkg_version': var('dbt_snowflake_feature_store', {}).get('package_version', '1.0.0')
-  } -%}
-  
   {% call statement('create_tags') -%}
     CREATE TAG IF NOT EXISTS {{ fs_database }}.{{ fs_schema }}.SNOWML_FEATURE_STORE_OBJECT;
     CREATE TAG IF NOT EXISTS {{ fs_database }}.{{ fs_schema }}.SNOWML_FEATURE_VIEW_METADATA;
@@ -62,9 +52,7 @@
     {%- endfor %}
   {%- endcall %}
   
-  {%- set tag_lines = [] -%}
-  {%- do tag_lines.append("SNOWML_FEATURE_STORE_OBJECT = '" ~ (fs_object_info | tojson) ~ "'") -%}
-  {%- do tag_lines.append("SNOWML_FEATURE_VIEW_METADATA = '" ~ (fv_metadata | tojson) ~ "'") -%}
+  {%- set entity_list = [] -%}
   {%- for entity in entities -%}
     {%- set entity_tag_query -%}
       SHOW TAGS LIKE 'SNOWML_FEATURE_STORE_ENTITY_{{ entity | upper }}' IN SCHEMA {{ fs_database }}.{{ fs_schema }}
@@ -73,9 +61,30 @@
     {%- if execute and entity_tag_result and entity_tag_result | length > 0 -%}
       {%- set allowed_values_json = entity_tag_result[0][6] -%}
       {%- set join_keys_list = fromjson(allowed_values_json) -%}
-      {%- set join_keys_str = join_keys_list | join(',') -%}
-      {%- do tag_lines.append("SNOWML_FEATURE_STORE_ENTITY_" ~ entity | upper ~ " = '" ~ join_keys_str ~ "'") -%}
+      {%- set entity_obj = {
+        'name': entity | upper,
+        'joinKeys': join_keys_list
+      } -%}
+      {%- do entity_list.append(entity_obj) -%}
     {%- endif -%}
+  {%- endfor -%}
+  
+  {%- set fv_metadata = {
+    'entities': entity_list,
+    'timestamp_col': timestamp_col if timestamp_col else 'NULL'
+  } -%}
+  
+  {%- set fs_object_info = {
+    'type': 'MANAGED_FEATURE_VIEW' if is_dynamic_table else 'EXTERNAL_FEATURE_VIEW',
+    'pkg_version': var('dbt_snowflake_feature_store', {}).get('package_version', '1.0.0')
+  } -%}
+  
+  {%- set tag_lines = [] -%}
+  {%- do tag_lines.append("SNOWML_FEATURE_STORE_OBJECT = '" ~ (fs_object_info | tojson) ~ "'") -%}
+  {%- do tag_lines.append("SNOWML_FEATURE_VIEW_METADATA = '" ~ (fv_metadata | tojson) ~ "'") -%}
+  {%- for entity_obj in entity_list -%}
+    {%- set join_keys_str = entity_obj['joinKeys'] | join(',') -%}
+    {%- do tag_lines.append("SNOWML_FEATURE_STORE_ENTITY_" ~ entity_obj['name'] ~ " = '" ~ join_keys_str ~ "'") -%}
   {%- endfor -%}
   {%- set tag_clause = "TAG (\n    " ~ tag_lines | join(",\n    ") ~ "\n  )" -%}
   
