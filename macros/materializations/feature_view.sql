@@ -52,25 +52,13 @@
     {%- endfor %}
   {%- endcall %}
   
-  {%- set entity_list = [] -%}
+  {%- set entity_names_upper = [] -%}
   {%- for entity in entities -%}
-    {%- set entity_tag_query -%}
-      SHOW TAGS LIKE 'SNOWML_FEATURE_STORE_ENTITY_{{ entity | upper }}' IN SCHEMA {{ fs_database }}.{{ fs_schema }}
-    {%- endset -%}
-    {%- set entity_tag_result = run_query(entity_tag_query) -%}
-    {%- if execute and entity_tag_result and entity_tag_result | length > 0 -%}
-      {%- set allowed_values_json = entity_tag_result[0][6] -%}
-      {%- set join_keys_list = fromjson(allowed_values_json) -%}
-      {%- set entity_obj = {
-        'name': entity | upper,
-        'joinKeys': join_keys_list
-      } -%}
-      {%- do entity_list.append(entity_obj) -%}
-    {%- endif -%}
+    {%- do entity_names_upper.append(entity | upper) -%}
   {%- endfor -%}
   
   {%- set fv_metadata = {
-    'entities': entity_list,
+    'entities': entity_names_upper,
     'timestamp_col': timestamp_col if timestamp_col else 'NULL'
   } -%}
   
@@ -82,9 +70,17 @@
   {%- set tag_lines = [] -%}
   {%- do tag_lines.append("SNOWML_FEATURE_STORE_OBJECT = '" ~ (fs_object_info | tojson) ~ "'") -%}
   {%- do tag_lines.append("SNOWML_FEATURE_VIEW_METADATA = '" ~ (fv_metadata | tojson) ~ "'") -%}
-  {%- for entity_obj in entity_list -%}
-    {%- set join_keys_str = entity_obj['joinKeys'] | join(',') -%}
-    {%- do tag_lines.append("SNOWML_FEATURE_STORE_ENTITY_" ~ entity_obj['name'] ~ " = '" ~ join_keys_str ~ "'") -%}
+  {%- for entity in entities -%}
+    {%- set entity_tag_query -%}
+      SHOW TAGS LIKE 'SNOWML_FEATURE_STORE_ENTITY_{{ entity | upper }}' IN SCHEMA {{ fs_database }}.{{ fs_schema }}
+    {%- endset -%}
+    {%- set entity_tag_result = run_query(entity_tag_query) -%}
+    {%- if execute and entity_tag_result and entity_tag_result | length > 0 -%}
+      {%- set allowed_values_json = entity_tag_result[0][6] -%}
+      {%- set join_keys_list = fromjson(allowed_values_json) -%}
+      {%- set join_keys_str = join_keys_list | join(',') -%}
+      {%- do tag_lines.append("SNOWML_FEATURE_STORE_ENTITY_" ~ entity | upper ~ " = '" ~ join_keys_str ~ "'") -%}
+    {%- endif -%}
   {%- endfor -%}
   {%- set tag_clause = "TAG (\n    " ~ tag_lines | join(",\n    ") ~ "\n  )" -%}
   
