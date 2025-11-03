@@ -1,0 +1,20 @@
+# dbt and Snowflake adapter
+dbt-core>=1.7.0
+dbt-snowflake>=1.7.0
+
+# Snowflake connectors
+snowflake-connector-python
+snowflake-snowpark-python
+
+# Snowflake ML (Feature Store)
+snowflake-ml-python
+
+# Testing
+pytest>=7.0.0
+pytest-xdist
+
+# Utilities
+pyyaml
+jinja2
+
+

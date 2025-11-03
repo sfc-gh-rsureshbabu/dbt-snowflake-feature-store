@@ -1,0 +1,26 @@
+name: dbt_snowflake_feature_store
+version: 1.0.0
+config-version: 2
+
+require-dbt-version: [">=1.6.0", "<2.0.0"]
+
+profile: dbt_snowflake_feature_store
+
+model-paths: ["integration_tests/models"]
+test-paths: ["integration_tests/tests"]
+macro-paths: ["macros"]
+
+# Package metadata
+vars:
+  dbt_snowflake_feature_store:
+    package_version: "1.0.0"
+  feature_store:
+    database: "{{ target.database }}"
+    schema: "FEATURE_STORE"
+    default_warehouse: "{{ target.warehouse }}"
+
+# No models in the package itself (users create models)
+models:
+  dbt_snowflake_feature_store:
+    +materialized: view
+

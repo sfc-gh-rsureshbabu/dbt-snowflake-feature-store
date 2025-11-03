@@ -1,0 +1,5 @@
+pytest>=7.0.0
+snowflake-ml-python>=1.0.0
+snowflake-snowpark-python>=1.0.0
+
+
