@@ -360,19 +360,57 @@ See `integration_tests/python_tests/README.md` for details.
 
 ## Troubleshooting
 
-**Q: Entity not found error**
-```
-A: Ensure you've created the entity first with `dbt run --select <entity_name>`
+### Entity not found error
+**Symptom:** `Entity 'X' not found in Feature Store`
+
+**Solution:** Ensure you've created the entity first:
+```bash
+dbt run --select <entity_name>
 ```
 
-**Q: Dynamic Table won't refresh**
-```
-A: Check warehouse permissions and Dynamic Table state with `SHOW DYNAMIC TABLES`
+### Dynamic Table won't refresh
+**Symptom:** Dynamic Table shows `SUSPENDED` or not updating
+
+**Solution:** Check warehouse permissions and state:
+```sql
+SHOW DYNAMIC TABLES IN SCHEMA <schema_name>;
 ```
 
-**Q: Tags not visible in Python API**
-```
-A: Verify tags exist with `SHOW TAGS IN SCHEMA <schema_name>`
+### UI Error: "Cannot read properties of undefined (reading 'joinKeys')"
+**Symptom:** Snowsight UI shows JavaScript error when viewing Feature Store
+
+**Root Cause:** Old feature views created before metadata fix have entities as strings instead of objects.
+
+**Solution:**
+
+1. **Find bad feature views:**
+   ```bash
+   python scripts/cleanup_old_metadata.py --check
+   ```
+
+2. **Drop and recreate them:**
+   ```bash
+   python scripts/cleanup_old_metadata.py --drop
+   dbt run --full-refresh  # Recreate with correct metadata
+   ```
+
+3. **Or manually drop:**
+   ```sql
+   DROP VIEW/DYNAMIC TABLE <old_feature_view>;
+   ```
+
+4. **Refresh the UI** (Ctrl+R or Cmd+R)
+
+**Prevention:** Always use the latest version of this package to ensure correct metadata structure.
+
+### Tags not visible in Python API
+**Symptom:** `get_feature_view()` fails or returns None
+
+**Solution:** Verify tags exist:
+```sql
+SHOW TAGS IN SCHEMA <schema_name>;
+SELECT * FROM INFORMATION_SCHEMA.TAG_REFERENCES 
+WHERE OBJECT_SCHEMA = '<schema_name>';
 ```
 
 ## License
