@@ -33,14 +33,14 @@
     {{ exceptions.raise_compiler_error("Feature Store requires 'database' and 'schema' in vars.feature_store") }}
   {%- endif -%}
   
-  {%- set version_safe = feature_view_version | replace('.', '_') -%}
-  {%- set physical_name = feature_view_name ~ '$' ~ version_safe -%}
+  {%- set physical_name = feature_view_name ~ '$' ~ feature_view_version -%}
   
   {%- set target_relation = api.Relation.create(
         database=fs_database,
         schema=fs_schema,
         identifier=physical_name,
-        type='view') -%}
+        type='view',
+        quote_policy={'identifier': true}) -%}
   
   {%- for entity in entities -%}
     {%- set entity_tag_name = 'SNOWML_FEATURE_STORE_ENTITY_' ~ entity | upper -%}
