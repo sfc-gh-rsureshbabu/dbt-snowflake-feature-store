@@ -42,7 +42,19 @@
         identifier=physical_name,
         type='view') -%}
   
-  {{ validate_entities_exist(entities) }}
+  {%- for entity in entities -%}
+    {%- set entity_tag_name = 'SNOWML_FEATURE_STORE_ENTITY_' ~ entity | upper -%}
+    {%- set check_query -%}
+      SHOW TAGS LIKE '{{ entity_tag_name }}' IN SCHEMA {{ fs_database }}.{{ fs_schema }}
+    {%- endset -%}
+    {%- set check_result = run_query(check_query) -%}
+    {%- if execute and check_result and check_result | length == 0 -%}
+      {{ exceptions.raise_compiler_error(
+        "Entity '" ~ entity ~ "' not found in Feature Store. " ~
+        "Please create it first with 'entity' materialization."
+      ) }}
+    {%- endif -%}
+  {%- endfor -%}
   
   {% call statement('create_tags') -%}
     CREATE TAG IF NOT EXISTS {{ fs_database }}.{{ fs_schema }}.SNOWML_FEATURE_STORE_OBJECT;
