@@ -33,7 +33,7 @@
     {{ exceptions.raise_compiler_error("Feature Store requires 'database' and 'schema' in vars.feature_store") }}
   {%- endif -%}
   
-  {%- set physical_name = feature_view_name ~ '$' ~ feature_view_version -%}
+  {%- set physical_name = (feature_view_name | upper) ~ '$' ~ feature_view_version -%}
   
   {%- set target_relation = api.Relation.create(
         database=fs_database,
