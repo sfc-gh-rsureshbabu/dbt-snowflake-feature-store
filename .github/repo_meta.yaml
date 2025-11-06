@@ -1,0 +1,34 @@
+# Snowflake Repository Classification Metadata
+# https://snowflake.enterprise.slack.com/archives/C01DW0KFAUU
+
+# Repository classification
+classification: internal
+
+# Data classification level
+data_classification: internal
+
+# Repository owner(s)
+owner: rsureshbabu
+
+# Repository description
+description: dbt package for Snowflake Feature Store - enables dbt-based feature engineering workflows
+
+# Primary contact
+contact: rsureshbabu@snowflake.com
+
+# Tags for discovery
+tags:
+  - dbt
+  - feature-store
+  - snowflake-ml
+  - data-engineering
+
+# Language(s) used
+languages:
+  - SQL
+  - Python
+  - Jinja
+
+# Repository type
+type: package
+
